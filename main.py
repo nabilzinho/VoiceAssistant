@@ -8,6 +8,9 @@ import webbrowser
 import tkinter as tk
 from tkinter import ttk, simpledialog
 import os
+from cryptography.fernet import Fernet
+
+import shutil
 
 # Initialize text-to-speech engine
 engine = pyttsx3.init()
@@ -64,34 +67,26 @@ def text_input():
 def perform_task(query):
     if "hello" in query:
         speak("Hello! How can I help you today?")
-    elif "set a reminder" in query:
-        speak("Sure, what would you like to be reminded of?")
-        reminder_text = get_user_input()
-        if reminder_text:
-            speak(f"Okay, I will remind you to {reminder_text}.")
-            # Implement reminder logic here (e.g., store in a file or database)
-    elif "create a to-do list" in query:
-        speak("Sure, let's create a to-do list. Please tell me your tasks one by one.")
-        tasks = []
-        while True:
-            task = text_input()
-            if not task:
-                break
-            tasks.append(task)
-            speak(f"Task added: {task}")
-        if tasks:
-            speak("Great! Your to-do list is created.")
-            # Implement to-do list logic here (e.g., store in a file or database)
-    elif "search the web for" in query:
-        search_query = query.replace("search the web for", "")
-        speak(f"Searching the web for {search_query}")
-        webbrowser.open(f"https://www.google.com/search?q={search_query}")
+
     elif "search for file" in query:
         file_name = search_file_query()
     elif "delete file" in query:
         file_name = search_file_query()
         if file_name:
             delete_file(file_name)
+    elif "encrypt file" in query:
+        file_name = search_file_query()
+        if file_name:
+            encrypt(file_name)
+    elif "decrypt file" in query:
+        file_name = search_file_query()
+        if file_name:
+            decrypt(file_name)
+    elif "copy file" in query:
+        file_name = search_file_query()
+        dest = get_file()
+        if file_name:
+            copy_file(file_name, dest)
     elif "create file" in query:
         file_name = get_file()
         create_file(file_name)
@@ -134,6 +129,10 @@ def create_file(full_name):
         speak(f'An error occurred: {e}')
 
 
+def copy_file(file_name, dest):
+    shutil.copy(file_name, dest)
+
+
 def search_file_query():
     file_name = get_file()
     if file_name:
@@ -156,6 +155,49 @@ def search_for_file(file_name):
     return None
 
 
+def encrypt(filename):
+    """
+    Given a filename (str) and key (bytes), it encrypts the file and write it
+    """
+    # key generation
+    keyf = Fernet.generate_key()
+
+    # string the key in a file
+    with open(filename + '.key', 'wb') as filekey:
+        filekey.write(keyf)
+
+    with open(filename + '.key', 'rb') as filekey:
+        key = filekey.read()
+
+    f = Fernet(key)
+    with open(filename, "rb") as file:
+        # read all file data
+        file_data = file.read()
+    # encrypt data
+    encrypted_data = f.encrypt(file_data)
+    # write the encrypted file
+    with open(filename, "wb") as file:
+        file.write(encrypted_data)
+
+
+def decrypt(filename):
+    """
+    Given a filename (str) and key (bytes), it decrypts the file and write it
+    """
+    with open(filename + '.key', 'rb') as filekey:
+        key = filekey.read()
+
+    f = Fernet(key)
+    with open(filename, "rb") as file:
+        # read the encrypted data
+        encrypted_data = file.read()
+    # decrypt data
+    decrypted_data = f.decrypt(encrypted_data)
+    # write the original file
+    with open(filename, "wb") as file:
+        file.write(decrypted_data)
+
+
 # Function to update the GUI with the assistant's response
 def update_gui(response):
     output_label.config(text=response)
@@ -169,7 +211,7 @@ def button_click():
 
 
 def get_file():
-    file_name = simpledialog.askstring("File Input", "Enter the file name:")
+    file_name = simpledialog.askstring("File Input", "Enter path name:")
     return file_name
 
 
